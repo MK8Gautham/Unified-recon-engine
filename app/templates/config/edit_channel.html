@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Channel{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-edit"></i> Edit Channel</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('config.channels') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Channels
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Channel Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" required 
+                               value="{{ channel.name }}">
+                        <div class="form-text">Enter a descriptive name for the payment channel.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ channel.description or '' }}</textarea>
+                        <div class="form-text">Provide additional details about this channel (optional).</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('config.channels') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Update Channel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> Channel Info</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Created:</strong> {{ channel.created_at.strftime('%Y-%m-%d %H:%M') if channel.created_at else 'Unknown' }}</p>
+                <hr>
+                <p class="card-text small">
+                    <i class="fas fa-exclamation-triangle text-warning"></i>
+                    Changing the channel name may affect existing uploads and configurations.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -21,7 +21,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
-                        <h4>{{ data.total_transactions }}</h4>
+                        <h4>{{ "{:,}".format(data.total_transactions) }}</h4>
                         <p class="card-text">Total Transactions</p>
                     </div>
                     <div class="align-self-center">
@@ -36,7 +36,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
-                        <h4>₹{{ "%.2f"|format(data.total_amount) }}</h4>
+                        <h4>₹{{ "{:,.2f}".format(data.total_amount) }}</h4>
                         <p class="card-text">Total Amount</p>
                     </div>
                     <div class="align-self-center">
@@ -94,30 +94,51 @@
                                     <th>File</th>
                                     <th>Channel</th>
                                     <th>Upload Time</th>
+                                    <th>Transactions</th>
+                                    <th>Amount</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for upload in data.recent_uploads %}
                                 <tr>
-                                    <td>{{ upload.filename }}</td>
-                                    <td>{{ upload.channel }}</td>
-                                    <td>{{ upload.upload_time }}</td>
                                     <td>
-                                        <span class="badge bg-{{ 'success' if upload.status == 'COMPLETED' else 'warning' }}">
-                                            {{ upload.status }}
-                                        </span>
+                                        <i class="fas fa-file-alt text-muted"></i>
+                                        {{ upload.filename[:30] }}{% if upload.filename|length > 30 %}...{% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ upload.channel_name }}</span>
+                                    </td>
+                                    <td>{{ upload.upload_date.strftime('%m/%d %H:%M') }}</td>
+                                    <td>{{ "{:,}".format(upload.total_transactions) }}</td>
+                                    <td>₹{{ "{:,.0f}".format(upload.total_amount) }}</td>
+                                    <td>
+                                        {% if upload.status == 'COMPLETED' %}
+                                            <span class="badge bg-success">{{ upload.status }}</span>
+                                        {% elif upload.status == 'PENDING' %}
+                                            <span class="badge bg-warning">{{ upload.status }}</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">{{ upload.status }}</span>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
+                    <div class="text-end">
+                        <a href="{{ url_for('uploads.history') }}" class="btn btn-sm btn-outline-primary">
+                            View All Uploads <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
                 {% else %}
-                    <p class="text-muted">No recent uploads found.</p>
-                    <a href="{{ url_for('uploads.mpr') }}" class="btn btn-primary">
-                        <i class="fas fa-upload"></i> Upload First File
-                    </a>
+                    <div class="text-center">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No recent uploads found.</p>
+                        <a href="{{ url_for('uploads.mpr') }}" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Upload First File
+                        </a>
+                    </div>
                 {% endif %}
             </div>
         </div>
@@ -133,15 +154,44 @@
                     {% for channel in data.channels %}
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span>{{ channel.name }}</span>
-                        <span class="badge bg-secondary">{{ channel.transaction_count }}</span>
+                        <span class="badge bg-secondary">{{ "{:,}".format(channel.transaction_count) }}</span>
                     </div>
                     {% endfor %}
+                    
+                    <hr>
+                    <div class="text-center">
+                        <a href="{{ url_for('analytics.channels') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-chart-bar"></i> View Analytics
+                        </a>
+                    </div>
                 {% else %}
-                    <p class="text-muted">No channel data available.</p>
-                    <a href="{{ url_for('config.channels') }}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-cog"></i> Configure Channels
-                    </a>
+                    <div class="text-center">
+                        <i class="fas fa-sitemap fa-2x text-muted mb-2"></i>
+                        <p class="text-muted small">No channel data available.</p>
+                        <a href="{{ url_for('config.channels') }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-cog"></i> Configure Channels
+                        </a>
+                    </div>
                 {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-tasks"></i> Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('uploads.mpr') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-upload"></i> Upload MPR File
+                    </a>
+                    <a href="{{ url_for('config.channels') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-cog"></i> Manage Channels
+                    </a>
+                    <a href="{{ url_for('recon.index') }}" class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-balance-scale"></i> Run Reconciliation
+                    </a>
+                </div>
             </div>
         </div>
     </div>

@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Field Mapping - {{ channel.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-map"></i> Field Mapping - {{ channel.name }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('config.channels') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Channels
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-4">
+                        <label for="file_format" class="form-label">File Format</label>
+                        <select class="form-select" id="file_format" name="file_format">
+                            <option value="CSV" {{ 'selected' if not config or config.file_format == 'CSV' }}>CSV</option>
+                            <option value="EXCEL" {{ 'selected' if config and config.file_format == 'EXCEL' }}>Excel (XLSX/XLS)</option>
+                        </select>
+                    </div>
+                    
+                    <h5>Field Mappings</h5>
+                    <p class="text-muted">Map the columns in your MPR files to system fields. Enter the exact column names as they appear in your files.</p>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="transaction_id_field" class="form-label">
+                                    Transaction ID <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" id="transaction_id_field" 
+                                       name="transaction_id_field" required
+                                       value="{{ config.field_mappings.transaction_id if config else '' }}"
+                                       placeholder="e.g., TXN_ID, TransactionID">
+                                <div class="form-text">Unique transaction identifier</div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="amount_field" class="form-label">
+                                    Amount <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" id="amount_field" 
+                                       name="amount_field" required
+                                       value="{{ config.field_mappings.amount if config else '' }}"
+                                       placeholder="e.g., AMOUNT, Amount, TXN_AMOUNT">
+                                <div class="form-text">Transaction amount</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="utr_field" class="form-label">UTR</label>
+                                <input type="text" class="form-control" id="utr_field" 
+                                       name="utr_field"
+                                       value="{{ config.field_mappings.utr if config else '' }}"
+                                       placeholder="e.g., UTR, UTR_NUMBER">
+                                <div class="form-text">Unique Transaction Reference</div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="transaction_time_field" class="form-label">Transaction Time</label>
+                                <input type="text" class="form-control" id="transaction_time_field" 
+                                       name="transaction_time_field"
+                                       value="{{ config.field_mappings.transaction_time if config else '' }}"
+                                       placeholder="e.g., TXN_TIME, TIMESTAMP">
+                                <div class="form-text">Transaction timestamp</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="reference_id_field" class="form-label">Reference ID</label>
+                                <input type="text" class="form-control" id="reference_id_field" 
+                                       name="reference_id_field"
+                                       value="{{ config.field_mappings.reference_id if config else '' }}"
+                                       placeholder="e.g., REF_ID, REFERENCE">
+                                <div class="form-text">External reference identifier</div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="settlement_account_field" class="form-label">Settlement Account</label>
+                                <input type="text" class="form-control" id="settlement_account_field" 
+                                       name="settlement_account_field"
+                                       value="{{ config.field_mappings.settlement_account if config else '' }}"
+                                       placeholder="e.g., SETTLEMENT_AC, ACCOUNT">
+                                <div class="form-text">Settlement account number</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('config.channels') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Mapping
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-lightbulb"></i> Mapping Tips</h6>
+            </div>
+            <div class="card-body">
+                <ul class="small">
+                    <li>Column names are case-sensitive</li>
+                    <li>Use exact names as they appear in your files</li>
+                    <li>Transaction ID and Amount are required fields</li>
+                    <li>Other fields are optional but recommended</li>
+                    <li>Test with a sample file after configuration</li>
+                </ul>
+            </div>
+        </div>
+        
+        {% if config %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-check-circle text-success"></i> Current Configuration</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>File Format:</strong> {{ config.file_format }}</p>
+                <p><strong>Last Updated:</strong> {{ config.created_at.strftime('%Y-%m-%d %H:%M') if config.created_at else 'Unknown' }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

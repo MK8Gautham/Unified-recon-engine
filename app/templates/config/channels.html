@@ -6,16 +6,97 @@
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2"><i class="fas fa-cog"></i> Channel Configuration</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
-        <button type="button" class="btn btn-primary">
+        <a href="{{ url_for('config.add_channel') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> Add Channel
-        </button>
+        </a>
     </div>
 </div>
 
+{% if channels %}
 <div class="card">
     <div class="card-body">
-        <p class="text-muted">Configure payment channels and field mappings for MPR files.</p>
-        <p><em>This feature will be implemented in the next iteration.</em></p>
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Channel Name</th>
+                        <th>Description</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for channel in channels %}
+                    <tr>
+                        <td><strong>{{ channel.name }}</strong></td>
+                        <td>{{ channel.description or '-' }}</td>
+                        <td>{{ channel.created_at.strftime('%Y-%m-%d %H:%M') if channel.created_at else '-' }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('config.channel_mapping', channel_id=channel.id) }}" 
+                                   class="btn btn-outline-primary" title="Configure Field Mapping">
+                                    <i class="fas fa-map"></i> Mapping
+                                </a>
+                                <a href="{{ url_for('config.edit_channel', channel_id=channel.id) }}" 
+                                   class="btn btn-outline-secondary" title="Edit Channel">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-danger" 
+                                        onclick="confirmDelete({{ channel.id }}, '{{ channel.name }}')" 
+                                        title="Delete Channel">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center">
+        <i class="fas fa-sitemap fa-3x text-muted mb-3"></i>
+        <h5>No Channels Configured</h5>
+        <p class="text-muted">Start by adding your first payment channel.</p>
+        <a href="{{ url_for('config.add_channel') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add First Channel
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the channel "<span id="channelName"></span>"?</p>
+                <p class="text-danger"><small>This action cannot be undone and will also delete all associated data.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Delete Channel</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDelete(channelId, channelName) {
+    document.getElementById('channelName').textContent = channelName;
+    document.getElementById('deleteForm').action = '/config/channels/' + channelId + '/delete';
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
 {% endblock %}

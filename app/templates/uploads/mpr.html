@@ -5,12 +5,83 @@
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2"><i class="fas fa-upload"></i> MPR File Upload</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('uploads.history') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-history"></i> Upload History
+        </a>
+    </div>
 </div>
 
-<div class="card">
-    <div class="card-body">
-        <p class="text-muted">Upload MPR (Merchant Payment Report) files from payment channels.</p>
-        <p><em>This feature will be implemented in the next iteration.</em></p>
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                {% if channels %}
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="channel_id" class="form-label">Payment Channel <span class="text-danger">*</span></label>
+                        <select class="form-select" id="channel_id" name="channel_id" required>
+                            <option value="">Select a channel...</option>
+                            {% for channel in channels %}
+                            <option value="{{ channel.id }}">{{ channel.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Choose the payment channel for this MPR file.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="file" class="form-label">MPR File <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" id="file" name="file" required 
+                               accept=".csv,.xlsx,.xls">
+                        <div class="form-text">
+                            Supported formats: CSV, Excel (XLSX/XLS). Maximum file size: 50MB.
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Upload & Process
+                        </button>
+                    </div>
+                </form>
+                {% else %}
+                <div class="text-center">
+                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                    <h5>No Channels Configured</h5>
+                    <p class="text-muted">You need to configure at least one payment channel before uploading MPR files.</p>
+                    <a href="{{ url_for('config.channels') }}" class="btn btn-primary">
+                        <i class="fas fa-cog"></i> Configure Channels
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> Upload Instructions</h6>
+            </div>
+            <div class="card-body">
+                <ol class="small">
+                    <li>Select the appropriate payment channel</li>
+                    <li>Choose your MPR file (CSV or Excel format)</li>
+                    <li>Click "Upload & Process" to begin</li>
+                    <li>The system will automatically parse and store the data</li>
+                </ol>
+                
+                <hr>
+                
+                <h6><i class="fas fa-exclamation-triangle text-warning"></i> Important Notes</h6>
+                <ul class="small">
+                    <li>Ensure your channel field mapping is configured</li>
+                    <li>File columns must match the configured mapping</li>
+                    <li>Processing may take a few moments for large files</li>
+                    <li>You'll see a confirmation once processing is complete</li>
+                </ul>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
