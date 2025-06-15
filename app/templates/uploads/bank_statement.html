@@ -5,12 +5,106 @@
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2"><i class="fas fa-university"></i> Bank Statement Upload</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('uploads.history') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-history"></i> Upload History
+        </a>
+    </div>
 </div>
 
-<div class="card">
-    <div class="card-body">
-        <p class="text-muted">Upload bank statements for reconciliation against MPR and internal data.</p>
-        <p><em>This feature will be implemented in the next iteration.</em></p>
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Bank Statement File <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" id="file" name="file" required 
+                               accept=".csv,.xlsx,.xls">
+                        <div class="form-text">
+                            Supported formats: CSV, Excel (XLSX/XLS). Maximum file size: 50MB.
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle"></i> Required Columns</h6>
+                        <p class="mb-2">Your bank statement file must contain:</p>
+                        <ul class="mb-0">
+                            <li><strong>amount</strong> - Transaction amount (positive for credits, negative for debits)</li>
+                        </ul>
+                        <p class="mt-2 mb-0"><small>Optional columns: transaction_date, utr, description</small></p>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Upload & Process
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> Upload Instructions</h6>
+            </div>
+            <div class="card-body">
+                <ol class="small">
+                    <li>Download bank statement from your bank</li>
+                    <li>Convert to CSV or Excel format if needed</li>
+                    <li>Ensure amount column is present</li>
+                    <li>Choose your file and upload</li>
+                    <li>The system will categorize credits and debits</li>
+                </ol>
+                
+                <hr>
+                
+                <h6><i class="fas fa-exclamation-triangle text-warning"></i> Important Notes</h6>
+                <ul class="small">
+                    <li>Use positive values for credits (money in)</li>
+                    <li>Use negative values for debits (money out)</li>
+                    <li>Include UTR numbers when available</li>
+                    <li>Transaction descriptions help with matching</li>
+                    <li>Date format: YYYY-MM-DD preferred</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-file-alt"></i> Sample Format</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>transaction_date</th>
+                                <th>amount</th>
+                                <th>utr</th>
+                                <th>description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>2024-01-15</td>
+                                <td>1000.00</td>
+                                <td>UTR123456</td>
+                                <td>NEFT Credit</td>
+                            </tr>
+                            <tr>
+                                <td>2024-01-15</td>
+                                <td>-50.00</td>
+                                <td></td>
+                                <td>Bank Charges</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

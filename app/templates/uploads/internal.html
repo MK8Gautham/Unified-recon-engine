@@ -5,12 +5,104 @@
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2"><i class="fas fa-database"></i> Internal Data Upload</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('uploads.history') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-history"></i> Upload History
+        </a>
+    </div>
 </div>
 
-<div class="card">
-    <div class="card-body">
-        <p class="text-muted">Upload your internal transaction data for reconciliation.</p>
-        <p><em>This feature will be implemented in the next iteration.</em></p>
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Internal Data File <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" id="file" name="file" required 
+                               accept=".csv,.xlsx,.xls">
+                        <div class="form-text">
+                            Supported formats: CSV, Excel (XLSX/XLS). Maximum file size: 50MB.
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle"></i> Required Columns</h6>
+                        <p class="mb-2">Your file must contain these columns:</p>
+                        <ul class="mb-0">
+                            <li><strong>transaction_id</strong> - Unique transaction identifier</li>
+                            <li><strong>amount</strong> - Transaction amount</li>
+                        </ul>
+                        <p class="mt-2 mb-0"><small>Optional columns: transaction_time, reference_id</small></p>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Upload & Process
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> Upload Instructions</h6>
+            </div>
+            <div class="card-body">
+                <ol class="small">
+                    <li>Prepare your internal transaction data file</li>
+                    <li>Ensure required columns are present</li>
+                    <li>Choose your file (CSV or Excel format)</li>
+                    <li>Click "Upload & Process" to begin</li>
+                    <li>The system will automatically parse and store the data</li>
+                </ol>
+                
+                <hr>
+                
+                <h6><i class="fas fa-lightbulb text-warning"></i> File Format Tips</h6>
+                <ul class="small">
+                    <li>Column names are case-sensitive</li>
+                    <li>Ensure transaction_id values are unique</li>
+                    <li>Amount should be numeric values</li>
+                    <li>Date formats: YYYY-MM-DD or DD/MM/YYYY</li>
+                    <li>Remove any header rows except column names</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-file-alt"></i> Sample Format</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>transaction_id</th>
+                                <th>amount</th>
+                                <th>transaction_time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>TXN001</td>
+                                <td>1000.00</td>
+                                <td>2024-01-15 10:30:00</td>
+                            </tr>
+                            <tr>
+                                <td>TXN002</td>
+                                <td>2500.50</td>
+                                <td>2024-01-15 11:45:00</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

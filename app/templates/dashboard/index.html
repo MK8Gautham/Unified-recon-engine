@@ -22,7 +22,7 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h4>{{ "{:,}".format(data.total_transactions) }}</h4>
-                        <p class="card-text">Total Transactions</p>
+                        <p class="card-text">MPR Transactions</p>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-exchange-alt fa-2x"></i>
@@ -37,7 +37,7 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h4>₹{{ "{:,.2f}".format(data.total_amount) }}</h4>
-                        <p class="card-text">Total Amount</p>
+                        <p class="card-text">MPR Amount</p>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-rupee-sign fa-2x"></i>
@@ -51,11 +51,11 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
-                        <h4>{{ data.channels|length }}</h4>
-                        <p class="card-text">Active Channels</p>
+                        <h4>{{ "{:,}".format(data.internal_transactions) }}</h4>
+                        <p class="card-text">Internal Transactions</p>
                     </div>
                     <div class="align-self-center">
-                        <i class="fas fa-sitemap fa-2x"></i>
+                        <i class="fas fa-database fa-2x"></i>
                     </div>
                 </div>
             </div>
@@ -66,11 +66,11 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between">
                     <div>
-                        <h4>0</h4>
-                        <p class="card-text">Pending Recon</p>
+                        <h4>₹{{ "{:,.2f}".format(data.bank_credits) }}</h4>
+                        <p class="card-text">Bank Credits</p>
                     </div>
                     <div class="align-self-center">
-                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                        <i class="fas fa-university fa-2x"></i>
                     </div>
                 </div>
             </div>
@@ -81,14 +81,15 @@
 <!-- Recent Activity -->
 <div class="row">
     <div class="col-md-8">
-        <div class="card">
+        <!-- MPR Uploads -->
+        <div class="card mb-3">
             <div class="card-header">
-                <h5><i class="fas fa-clock"></i> Recent Uploads</h5>
+                <h5><i class="fas fa-file-alt"></i> Recent MPR Uploads</h5>
             </div>
             <div class="card-body">
-                {% if data.recent_uploads %}
+                {% if data.recent_mpr_uploads %}
                     <div class="table-responsive">
-                        <table class="table table-striped">
+                        <table class="table table-striped table-sm">
                             <thead>
                                 <tr>
                                     <th>File</th>
@@ -100,11 +101,11 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for upload in data.recent_uploads %}
+                                {% for upload in data.recent_mpr_uploads %}
                                 <tr>
                                     <td>
                                         <i class="fas fa-file-alt text-muted"></i>
-                                        {{ upload.filename[:30] }}{% if upload.filename|length > 30 %}...{% endif %}
+                                        {{ upload.filename[:25] }}{% if upload.filename|length > 25 %}...{% endif %}
                                     </td>
                                     <td>
                                         <span class="badge bg-secondary">{{ upload.channel_name }}</span>
@@ -126,20 +127,78 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="text-end">
-                        <a href="{{ url_for('uploads.history') }}" class="btn btn-sm btn-outline-primary">
-                            View All Uploads <i class="fas fa-arrow-right"></i>
-                        </a>
-                    </div>
                 {% else %}
                     <div class="text-center">
-                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">No recent uploads found.</p>
-                        <a href="{{ url_for('uploads.mpr') }}" class="btn btn-primary">
-                            <i class="fas fa-upload"></i> Upload First File
+                        <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">No MPR uploads found.</p>
+                        <a href="{{ url_for('uploads.mpr') }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-upload"></i> Upload First MPR File
                         </a>
                     </div>
                 {% endif %}
+            </div>
+        </div>
+
+        <!-- Internal & Bank Data -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="fas fa-database"></i> Internal Data</h6>
+                    </div>
+                    <div class="card-body">
+                        {% if data.recent_internal_uploads %}
+                            {% for upload in data.recent_internal_uploads %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <small class="text-muted">{{ upload.filename[:20] }}{% if upload.filename|length > 20 %}...{% endif %}</small>
+                                    <br>
+                                    <small>{{ "{:,}".format(upload.total_transactions) }} transactions</small>
+                                </div>
+                                <span class="badge bg-success">₹{{ "{:,.0f}".format(upload.total_amount) }}</span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center">
+                                <i class="fas fa-database fa-2x text-muted mb-2"></i>
+                                <p class="text-muted small">No internal data uploaded.</p>
+                                <a href="{{ url_for('uploads.internal') }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-upload"></i> Upload
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="fas fa-university"></i> Bank Statements</h6>
+                    </div>
+                    <div class="card-body">
+                        {% if data.recent_bank_uploads %}
+                            {% for upload in data.recent_bank_uploads %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <small class="text-muted">{{ upload.filename[:20] }}{% if upload.filename|length > 20 %}...{% endif %}</small>
+                                    <br>
+                                    <small class="text-success">Credits: ₹{{ "{:,.0f}".format(upload.total_credits) }}</small>
+                                    <small class="text-danger">Debits: ₹{{ "{:,.0f}".format(upload.total_debits) }}</small>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center">
+                                <i class="fas fa-university fa-2x text-muted mb-2"></i>
+                                <p class="text-muted small">No bank statements uploaded.</p>
+                                <a href="{{ url_for('uploads.bank_statement') }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-upload"></i> Upload
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -185,12 +244,33 @@
                     <a href="{{ url_for('uploads.mpr') }}" class="btn btn-outline-primary btn-sm">
                         <i class="fas fa-upload"></i> Upload MPR File
                     </a>
-                    <a href="{{ url_for('config.channels') }}" class="btn btn-outline-secondary btn-sm">
-                        <i class="fas fa-cog"></i> Manage Channels
+                    <a href="{{ url_for('uploads.internal') }}" class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-database"></i> Upload Internal Data
                     </a>
-                    <a href="{{ url_for('recon.index') }}" class="btn btn-outline-info btn-sm">
+                    <a href="{{ url_for('uploads.bank_statement') }}" class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-university"></i> Upload Bank Statement
+                    </a>
+                    <a href="{{ url_for('recon.index') }}" class="btn btn-outline-warning btn-sm">
                         <i class="fas fa-balance-scale"></i> Run Reconciliation
                     </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> System Status</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h6 class="text-success">{{ data.channels|length }}</h6>
+                        <small class="text-muted">Active Channels</small>
+                    </div>
+                    <div class="col-6">
+                        <h6 class="text-warning">0</h6>
+                        <small class="text-muted">Pending Recon</small>
+                    </div>
                 </div>
             </div>
         </div>

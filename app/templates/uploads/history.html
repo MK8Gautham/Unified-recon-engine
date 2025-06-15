@@ -6,66 +6,183 @@
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2"><i class="fas fa-history"></i> Upload History</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
-        <a href="{{ url_for('uploads.mpr') }}" class="btn btn-primary">
-            <i class="fas fa-upload"></i> Upload New File
-        </a>
-    </div>
-</div>
-
-{% if uploads %}
-<div class="card">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>File Name</th>
-                        <th>Channel</th>
-                        <th>Upload Date</th>
-                        <th>Transactions</th>
-                        <th>Total Amount</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for upload in uploads %}
-                    <tr>
-                        <td>
-                            <i class="fas fa-file-alt"></i>
-                            {{ upload.filename }}
-                        </td>
-                        <td>
-                            <span class="badge bg-secondary">{{ upload.channel_name }}</span>
-                        </td>
-                        <td>{{ upload.upload_date.strftime('%Y-%m-%d %H:%M') }}</td>
-                        <td>{{ "{:,}".format(upload.total_transactions) }}</td>
-                        <td>₹{{ "{:,.2f}".format(upload.total_amount) }}</td>
-                        <td>
-                            {% if upload.status == 'COMPLETED' %}
-                                <span class="badge bg-success">{{ upload.status }}</span>
-                            {% elif upload.status == 'PENDING' %}
-                                <span class="badge bg-warning">{{ upload.status }}</span>
-                            {% else %}
-                                <span class="badge bg-danger">{{ upload.status }}</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="btn-group me-2">
+            <a href="{{ url_for('uploads.mpr') }}" class="btn btn-primary">
+                <i class="fas fa-upload"></i> Upload MPR
+            </a>
+            <a href="{{ url_for('uploads.internal') }}" class="btn btn-outline-primary">
+                <i class="fas fa-database"></i> Upload Internal
+            </a>
+            <a href="{{ url_for('uploads.bank_statement') }}" class="btn btn-outline-primary">
+                <i class="fas fa-university"></i> Upload Bank Statement
+            </a>
         </div>
     </div>
 </div>
-{% else %}
-<div class="card">
-    <div class="card-body text-center">
-        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-        <h5>No Uploads Yet</h5>
-        <p class="text-muted">Start by uploading your first MPR file.</p>
-        <a href="{{ url_for('uploads.mpr') }}" class="btn btn-primary">
-            <i class="fas fa-upload"></i> Upload First File
-        </a>
+
+<!-- MPR Uploads -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5><i class="fas fa-file-alt"></i> MPR File Uploads</h5>
+    </div>
+    <div class="card-body">
+        {% if mpr_uploads %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>File Name</th>
+                            <th>Channel</th>
+                            <th>Upload Date</th>
+                            <th>Transactions</th>
+                            <th>Total Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for upload in mpr_uploads %}
+                        <tr>
+                            <td>
+                                <i class="fas fa-file-alt"></i>
+                                {{ upload.filename }}
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ upload.channel_name }}</span>
+                            </td>
+                            <td>{{ upload.upload_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ "{:,}".format(upload.total_transactions) }}</td>
+                            <td>₹{{ "{:,.2f}".format(upload.total_amount) }}</td>
+                            <td>
+                                {% if upload.status == 'COMPLETED' %}
+                                    <span class="badge bg-success">{{ upload.status }}</span>
+                                {% elif upload.status == 'PENDING' %}
+                                    <span class="badge bg-warning">{{ upload.status }}</span>
+                                {% else %}
+                                    <span class="badge bg-danger">{{ upload.status }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center">
+                <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                <p class="text-muted">No MPR files uploaded yet.</p>
+                <a href="{{ url_for('uploads.mpr') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-upload"></i> Upload First MPR File
+                </a>
+            </div>
+        {% endif %}
     </div>
 </div>
-{% endif %}
+
+<!-- Internal Data Uploads -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5><i class="fas fa-database"></i> Internal Data Uploads</h5>
+    </div>
+    <div class="card-body">
+        {% if internal_uploads %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>File Name</th>
+                            <th>Upload Date</th>
+                            <th>Transactions</th>
+                            <th>Total Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for upload in internal_uploads %}
+                        <tr>
+                            <td>
+                                <i class="fas fa-database"></i>
+                                {{ upload.filename }}
+                            </td>
+                            <td>{{ upload.upload_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ "{:,}".format(upload.total_transactions) }}</td>
+                            <td>₹{{ "{:,.2f}".format(upload.total_amount) }}</td>
+                            <td>
+                                {% if upload.status == 'COMPLETED' %}
+                                    <span class="badge bg-success">COMPLETED</span>
+                                {% elif upload.status == 'PENDING' %}
+                                    <span class="badge bg-warning">PENDING</span>
+                                {% else %}
+                                    <span class="badge bg-danger">ERROR</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center">
+                <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                <p class="text-muted">No internal data files uploaded yet.</p>
+                <a href="{{ url_for('uploads.internal') }}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-database"></i> Upload Internal Data
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Bank Statement Uploads -->
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-university"></i> Bank Statement Uploads</h5>
+    </div>
+    <div class="card-body">
+        {% if bank_uploads %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>File Name</th>
+                            <th>Upload Date</th>
+                            <th>Total Credits</th>
+                            <th>Total Debits</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for upload in bank_uploads %}
+                        <tr>
+                            <td>
+                                <i class="fas fa-university"></i>
+                                {{ upload.filename }}
+                            </td>
+                            <td>{{ upload.upload_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td class="text-success">₹{{ "{:,.2f}".format(upload.total_credits) }}</td>
+                            <td class="text-danger">₹{{ "{:,.2f}".format(upload.total_debits) }}</td>
+                            <td>
+                                {% if upload.status == 'COMPLETED' %}
+                                    <span class="badge bg-success">COMPLETED</span>
+                                {% elif upload.status == 'PENDING' %}
+                                    <span class="badge bg-warning">PENDING</span>
+                                {% else %}
+                                    <span class="badge bg-danger">ERROR</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center">
+                <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                <p class="text-muted">No bank statements uploaded yet.</p>
+                <a href="{{ url_for('uploads.bank_statement') }}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-university"></i> Upload Bank Statement
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}
