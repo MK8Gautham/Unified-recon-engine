@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-tachometer-alt"></i> Analytics Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('analytics.transactions') }}" class="btn btn-primary">
+                <i class="fas fa-table"></i> Transaction Reports
+            </a>
+            <a href="{{ url_for('analytics.channels') }}" class="btn btn-outline-primary">
+                <i class="fas fa-chart-line"></i> Channel Analytics
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Key Metrics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ "{:,}".format(data.total_transactions or 0) }}</h4>
+                        <p class="card-text">Total Transactions</p>
+                        <small>Last 7 days</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exchange-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>₹{{ "{:,.0f}".format(data.total_amount or 0) }}</h4>
+                        <p class="card-text">Total Amount</p>
+                        <small>Last 7 days</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-rupee-sign fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ "{:.1f}".format(data.overall_match_rate or 0) }}%</h4>
+                        <p class="card-text">Match Rate</p>
+                        <small>{{ "{:,}".format(data.total_matched or 0) }} matched</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ "{:,}".format(data.total_anomalies or 0) }}</h4>
+                        <p class="card-text">Anomalies</p>
+                        <small>Require attention</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Channel Performance Summary -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-bar"></i> Channel Performance Summary</h5>
+            </div>
+            <div class="card-body">
+                {% if data.summary_data %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Channel</th>
+                                    <th>Transactions</th>
+                                    <th>Amount</th>
+                                    <th>Avg Amount</th>
+                                    <th>Match Rate</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for channel in data.summary_data %}
+                                <tr>
+                                    <td><strong>{{ channel.channel_name }}</strong></td>
+                                    <td>{{ "{:,}".format(channel.total_transactions) }}</td>
+                                    <td>₹{{ "{:,.0f}".format(channel.total_amount) }}</td>
+                                    <td>₹{{ "{:,.0f}".format(channel.avg_amount) }}</td>
+                                    <td>
+                                        <span class="badge {{ 'bg-success' if channel.match_rate >= 95 else 'bg-warning' if channel.match_rate >= 85 else 'bg-danger' }}">
+                                            {{ "{:.1f}".format(channel.match_rate) }}%
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if channel.match_rate >= 95 %}
+                                            <i class="fas fa-check-circle text-success"></i> Excellent
+                                        {% elif channel.match_rate >= 85 %}
+                                            <i class="fas fa-info-circle text-primary"></i> Good
+                                        {% else %}
+                                            <i class="fas fa-exclamation-triangle text-warning"></i> Needs Review
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center">
+                        <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                        <h6>No Channel Data Available</h6>
+                        <p class="text-muted">Upload MPR files to see channel performance.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-chart-pie"></i> Performance Distribution</h6>
+            </div>
+            <div class="card-body">
+                {% if data.summary_data %}
+                    <canvas id="performancePieChart" width="300" height="300"></canvas>
+                {% else %}
+                    <div class="text-center">
+                        <i class="fas fa-chart-pie fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No data to display</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-clock"></i> Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('recon.index') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-balance-scale"></i> Run Reconciliation
+                    </a>
+                    <a href="{{ url_for('analytics.transactions') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-table"></i> View Transaction Details
+                    </a>
+                    <a href="{{ url_for('recon.anomalies') }}" class="btn btn-outline-warning btn-sm">
+                        <i class="fas fa-exclamation-triangle"></i> Review Anomalies
+                    </a>
+                    <a href="{{ url_for('uploads.mpr') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-upload"></i> Upload New Data
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity Timeline -->
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-history"></i> Recent Activity Timeline</h5>
+    </div>
+    <div class="card-body">
+        {% if data.channel_performance %}
+            <div class="timeline">
+                {% for channel_name, perf in data.channel_performance.items() %}
+                <div class="timeline-item">
+                    <div class="timeline-marker bg-primary"></div>
+                    <div class="timeline-content">
+                        <h6>{{ channel_name }}</h6>
+                        <p class="mb-1">
+                            <strong>{{ "{:,}".format(perf.transactions) }}</strong> transactions, 
+                            <strong>₹{{ "{:,.0f}".format(perf.amount) }}</strong> total amount
+                        </p>
+                        <small class="text-muted">
+                            Match rate: {{ "{:.1f}".format(perf.match_rate) }}% | 
+                            Last 7 days
+                        </small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center">
+                <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                <h6>No Recent Activity</h6>
+                <p class="text-muted">Upload and process data to see activity timeline.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+{% if data.summary_data %}
+// Performance Distribution Pie Chart
+const channelData = {{ data.summary_data | tojson }};
+const channelNames = channelData.map(c => c.channel_name);
+const channelAmounts = channelData.map(c => c.total_amount);
+
+const ctx = document.getElementById('performancePieChart').getContext('2d');
+new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+        labels: channelNames,
+        datasets: [{
+            data: channelAmounts,
+            backgroundColor: [
+                '#FF6384',
+                '#36A2EB', 
+                '#FFCE56',
+                '#4BC0C0',
+                '#9966FF',
+                '#FF9F40'
+            ],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    usePointStyle: true
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const label = context.label || '';
+                        const value = context.parsed;
+                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const percentage = ((value / total) * 100).toFixed(1);
+                        return `${label}: ₹${value.toLocaleString()} (${percentage}%)`;
+                    }
+                }
+            }
+        }
+    }
+});
+{% endif %}
+</script>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -22px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 3px solid #007bff;
+}
+</style>
+{% endblock %}

@@ -1,16 +1,315 @@
 {% extends "base.html" %}
 
-{% block title %}Channel Analytics{% endblock %}
+{% block title %}Channel Performance Analytics{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2"><i class="fas fa-chart-bar"></i> Channel Analytics</h1>
-</div>
-
-<div class="card">
-    <div class="card-body">
-        <p class="text-muted">Performance analytics and reporting for payment channels.</p>
-        <p><em>This feature will be implemented in the next iteration.</em></p>
+    <h1 class="h2"><i class="fas fa-chart-line"></i> Channel Performance Analytics</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('analytics.transactions') }}" class="btn btn-outline-primary">
+                <i class="fas fa-table"></i> Transaction Details
+            </a>
+            <a href="{{ url_for('analytics.dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-tachometer-alt"></i> Analytics Dashboard
+            </a>
+        </div>
     </div>
 </div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label for="days" class="form-label">Time Period</label>
+                <select class="form-select" id="days" name="days" onchange="this.form.submit()">
+                    <option value="7" {{ 'selected' if days == 7 else '' }}>Last 7 days</option>
+                    <option value="30" {{ 'selected' if days == 30 else '' }}>Last 30 days</option>
+                    <option value="90" {{ 'selected' if days == 90 else '' }}>Last 90 days</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="channel_id" class="form-label">Focus Channel</label>
+                <select class="form-select" id="channel_id" name="channel_id" onchange="this.form.submit()">
+                    <option value="">All Channels Overview</option>
+                    {% for channel in all_channels %}
+                    <option value="{{ channel.id }}" 
+                            {{ 'selected' if selected_channel and selected_channel.id == channel.id else '' }}>
+                        {{ channel.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-sync"></i> Refresh Data
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Channel Performance Overview -->
+{% if performance_data %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5><i class="fas fa-chart-bar"></i> Channel Performance Overview (Last {{ days }} days)</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Channel</th>
+                        <th>Total Transactions</th>
+                        <th>Total Amount</th>
+                        <th>Daily Average</th>
+                        <th>Match Rate</th>
+                        <th>Anomalies</th>
+                        <th>Performance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set channel_stats = {} %}
+                    {% for perf in performance_data %}
+                        {% if perf.channel_name not in channel_stats %}
+                            {% set _ = channel_stats.update({perf.channel_name: {
+                                'transactions': 0, 'amount': 0, 'matched': 0, 'anomalies': 0, 'days': 0
+                            }}) %}
+                        {% endif %}
+                        {% set _ = channel_stats[perf.channel_name].update({
+                            'transactions': channel_stats[perf.channel_name]['transactions'] + perf.daily_transactions,
+                            'amount': channel_stats[perf.channel_name]['amount'] + perf.daily_amount,
+                            'matched': channel_stats[perf.channel_name]['matched'] + perf.daily_matched,
+                            'anomalies': channel_stats[perf.channel_name]['anomalies'] + perf.daily_anomalies,
+                            'days': channel_stats[perf.channel_name]['days'] + 1
+                        }) %}
+                    {% endfor %}
+                    
+                    {% for channel_name, stats in channel_stats.items() %}
+                    <tr>
+                        <td>
+                            <strong>{{ channel_name }}</strong>
+                        </td>
+                        <td>{{ "{:,}".format(stats.transactions) }}</td>
+                        <td>₹{{ "{:,.0f}".format(stats.amount) }}</td>
+                        <td>
+                            {{ "{:,.0f}".format(stats.transactions / days) }} txns<br>
+                            <small class="text-muted">₹{{ "{:,.0f}".format(stats.amount / days) }}</small>
+                        </td>
+                        <td>
+                            {% set match_rate = (stats.matched / stats.transactions * 100) if stats.transactions else 0 %}
+                            <span class="badge {{ 'bg-success' if match_rate >= 95 else 'bg-warning' if match_rate >= 85 else 'bg-danger' }}">
+                                {{ "{:.1f}".format(match_rate) }}%
+                            </span>
+                        </td>
+                        <td>
+                            {% if stats.anomalies > 0 %}
+                                <span class="text-danger">{{ stats.anomalies }}</span>
+                            {% else %}
+                                <span class="text-success">0</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set performance_score = match_rate - (stats.anomalies / stats.transactions * 100) if stats.transactions else 0 %}
+                            {% if performance_score >= 90 %}
+                                <span class="badge bg-success">Excellent</span>
+                            {% elif performance_score >= 80 %}
+                                <span class="badge bg-primary">Good</span>
+                            {% elif performance_score >= 70 %}
+                                <span class="badge bg-warning">Fair</span>
+                            {% else %}
+                                <span class="badge bg-danger">Needs Attention</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Specific Channel Trends -->
+{% if selected_channel and channel_trends %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5><i class="fas fa-line-chart"></i> {{ selected_channel.name }} - Daily Trends</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Transactions</th>
+                        <th>Amount</th>
+                        <th>Avg Amount</th>
+                        <th>Match Rate</th>
+                        <th>Anomalies</th>
+                        <th>Unique UTRs</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trend in channel_trends %}
+                    <tr>
+                        <td>{{ trend.transaction_date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ "{:,}".format(trend.transactions) }}</td>
+                        <td>₹{{ "{:,.0f}".format(trend.amount) }}</td>
+                        <td>₹{{ "{:,.0f}".format(trend.avg_amount) }}</td>
+                        <td>
+                            <span class="badge {{ 'bg-success' if trend.match_rate >= 95 else 'bg-warning' if trend.match_rate >= 85 else 'bg-danger' }}">
+                                {{ "{:.1f}".format(trend.match_rate) }}%
+                            </span>
+                        </td>
+                        <td>
+                            {% if trend.anomalies > 0 %}
+                                <span class="text-danger">{{ trend.anomalies }}</span>
+                            {% else %}
+                                <span class="text-success">0</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ trend.unique_utrs }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Daily Performance Chart -->
+{% if performance_data %}
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-chart-area"></i> Daily Performance Visualization</h5>
+    </div>
+    <div class="card-body">
+        <canvas id="performanceChart" width="400" height="200"></canvas>
+    </div>
+</div>
+{% endif %}
+
+<!-- No Data State -->
+{% if not performance_data %}
+<div class="card">
+    <div class="card-body text-center">
+        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+        <h5>No Performance Data Available</h5>
+        <p class="text-muted">Upload MPR files and run reconciliation to see channel performance analytics.</p>
+        <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+            <a href="{{ url_for('uploads.mpr') }}" class="btn btn-primary">
+                <i class="fas fa-upload"></i> Upload MPR Files
+            </a>
+            <a href="{{ url_for('recon.index') }}" class="btn btn-outline-primary">
+                <i class="fas fa-balance-scale"></i> Run Reconciliation
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+{% if performance_data %}
+// Prepare data for chart
+const performanceData = {{ performance_data | tojson }};
+
+// Group data by date
+const dateGroups = {};
+performanceData.forEach(item => {
+    const date = item.transaction_date;
+    if (!dateGroups[date]) {
+        dateGroups[date] = {
+            date: date,
+            channels: {},
+            totalTransactions: 0,
+            totalAmount: 0
+        };
+    }
+    
+    dateGroups[date].channels[item.channel_name] = {
+        transactions: item.daily_transactions,
+        amount: item.daily_amount,
+        matchRate: item.match_rate
+    };
+    dateGroups[date].totalTransactions += item.daily_transactions;
+    dateGroups[date].totalAmount += item.daily_amount;
+});
+
+// Sort dates
+const sortedDates = Object.keys(dateGroups).sort().slice(-14); // Last 14 days
+
+// Prepare chart data
+const labels = sortedDates.map(date => new Date(date).toLocaleDateString());
+const datasets = [];
+
+// Get unique channels
+const channels = [...new Set(performanceData.map(item => item.channel_name))];
+const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'];
+
+channels.forEach((channel, index) => {
+    const data = sortedDates.map(date => {
+        const dayData = dateGroups[date];
+        return dayData.channels[channel] ? dayData.channels[channel].transactions : 0;
+    });
+    
+    datasets.push({
+        label: channel,
+        data: data,
+        borderColor: colors[index % colors.length],
+        backgroundColor: colors[index % colors.length] + '20',
+        fill: false,
+        tension: 0.1
+    });
+});
+
+// Create chart
+const ctx = document.getElementById('performanceChart').getContext('2d');
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: labels,
+        datasets: datasets
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            title: {
+                display: true,
+                text: 'Daily Transaction Volume by Channel'
+            },
+            legend: {
+                display: true,
+                position: 'top'
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                title: {
+                    display: true,
+                    text: 'Number of Transactions'
+                }
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: 'Date'
+                }
+            }
+        },
+        interaction: {
+            intersect: false,
+            mode: 'index'
+        }
+    }
+});
+{% endif %}
+</script>
 {% endblock %}
