@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Reconciliation Results{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-list"></i> Reconciliation Results</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('recon.index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Filter Controls -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="btn-group" role="group">
+                    <a href="{{ url_for('recon.results') }}" 
+                       class="btn {{ 'btn-primary' if not current_status else 'btn-outline-primary' }}">
+                        All Results ({{ "{:,}".format((summary.total_matched or 0) + (summary.total_pending or 0) + (summary.total_anomalies or 0)) }})
+                    </a>
+                    <a href="{{ url_for('recon.results', status='MATCHED') }}" 
+                       class="btn {{ 'btn-success' if current_status == 'MATCHED' else 'btn-outline-success' }}">
+                        Matched ({{ "{:,}".format(summary.total_matched or 0) }})
+                    </a>
+                    <a href="{{ url_for('recon.results', status='PENDING') }}" 
+                       class="btn {{ 'btn-warning' if current_status == 'PENDING' else 'btn-outline-warning' }}">
+                        Pending ({{ "{:,}".format(summary.total_pending or 0) }})
+                    </a>
+                    <a href="{{ url_for('recon.results', status='ANOMALY') }}" 
+                       class="btn {{ 'btn-danger' if current_status == 'ANOMALY' else 'btn-outline-danger' }}">
+                        Anomalies ({{ "{:,}".format(summary.total_anomalies or 0) }})
+                    </a>
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <button class="btn btn-outline-secondary" onclick="exportResults()">
+                    <i class="fas fa-download"></i> Export CSV
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Results Table -->
+{% if results %}
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped" id="resultsTable">
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>MPR Transaction</th>
+                        <th>Internal Transaction</th>
+                        <th>Bank Transaction</th>
+                        <th>Channel</th>
+                        <th>Anomaly Type</th>
+                        <th>Processed Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for result in results %}
+                    <tr>
+                        <td>
+                            {% if result.status == 'MATCHED' %}
+                                <span class="badge bg-success">MATCHED</span>
+                            {% elif result.status == 'PENDING' %}
+                                <span class="badge bg-warning">PENDING</span>
+                            {% elif result.status == 'ANOMALY' %}
+                                <span class="badge bg-danger">ANOMALY</span>
+                            {% elif result.status == 'RESOLVED' %}
+                                <span class="badge bg-info">RESOLVED</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ result.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if result.mpr_txn_id %}
+                                <div>
+                                    <strong>{{ result.mpr_txn_id }}</strong>
+                                    <br>
+                                    <small class="text-success">₹{{ "{:,.2f}".format(result.mpr_amount) if result.mpr_amount else '0.00' }}</small>
+                                </div>
+                            {% else %}
+                                <span class="text-muted">No MPR Data</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if result.internal_txn_id %}
+                                <div>
+                                    <strong>{{ result.internal_txn_id }}</strong>
+                                    <br>
+                                    <small class="text-primary">₹{{ "{:,.2f}".format(result.internal_amount) if result.internal_amount else '0.00' }}</small>
+                                </div>
+                            {% else %}
+                                <span class="text-muted">No Internal Data</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if result.bank_amount %}
+                                <div>
+                                    <strong class="text-info">₹{{ "{:,.2f}".format(result.bank_amount) }}</strong>
+                                    {% if result.bank_utr %}
+                                        <br>
+                                        <small class="text-muted">UTR: {{ result.bank_utr }}</small>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                <span class="text-muted">No Bank Data</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if result.channel_name %}
+                                <span class="badge bg-secondary">{{ result.channel_name }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if result.anomaly_type %}
+                                <span class="badge bg-outline-danger">
+                                    {% if result.anomaly_type == 'MISSING_INTERNAL' %}
+                                        Missing Internal
+                                    {% elif result.anomaly_type == 'MISSING_MPR' %}
+                                        Missing MPR
+                                    {% elif result.anomaly_type == 'AMOUNT_MISMATCH' %}
+                                        Amount Mismatch
+                                    {% elif result.anomaly_type == 'MISSING_BANK' %}
+                                        Missing Bank
+                                    {% else %}
+                                        {{ result.anomaly_type }}
+                                    {% endif %}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small>{{ result.created_at.strftime('%Y-%m-%d %H:%M') if result.created_at else '-' }}</small>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if results|length >= 50 %}
+        <div class="text-center mt-3">
+            <p class="text-muted">Showing first 50 results. Use filters to narrow down results.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center">
+        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+        <h5>No Results Found</h5>
+        <p class="text-muted">
+            {% if current_status %}
+                No reconciliation results found with status "{{ current_status }}".
+            {% else %}
+                No reconciliation results available. Run reconciliation first.
+            {% endif %}
+        </p>
+        <a href="{{ url_for('recon.index') }}" class="btn btn-primary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function exportResults() {
+    // Simple CSV export functionality
+    const table = document.getElementById('resultsTable');
+    let csv = [];
+    
+    // Get headers
+    const headers = [];
+    table.querySelectorAll('thead th').forEach(th => {
+        headers.push(th.textContent.trim());
+    });
+    csv.push(headers.join(','));
+    
+    // Get data rows
+    table.querySelectorAll('tbody tr').forEach(tr => {
+        const row = [];
+        tr.querySelectorAll('td').forEach(td => {
+            // Clean up the cell content
+            let content = td.textContent.trim().replace(/\n/g, ' ').replace(/,/g, ';');
+            row.push(content);
+        });
+        csv.push(row.join(','));
+    });
+    
+    // Download CSV
+    const csvContent = csv.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'reconciliation_results_' + new Date().toISOString().split('T')[0] + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+}
+</script>
+{% endblock %}

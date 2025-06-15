@@ -1,16 +1,269 @@
 {% extends "base.html" %}
 
-{% block title %}Reconciliation{% endblock %}
+{% block title %}Reconciliation Dashboard{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2"><i class="fas fa-balance-scale"></i> Reconciliation</h1>
-</div>
-
-<div class="card">
-    <div class="card-body">
-        <p class="text-muted">Automated reconciliation between MPR files, internal data, and bank statements.</p>
-        <p><em>This feature will be implemented in the next iteration.</em></p>
+    <h1 class="h2"><i class="fas fa-balance-scale"></i> Reconciliation Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('recon.results') }}" class="btn btn-outline-primary">
+                <i class="fas fa-list"></i> View Results
+            </a>
+            <a href="{{ url_for('recon.anomalies') }}" class="btn btn-outline-warning">
+                <i class="fas fa-exclamation-triangle"></i> View Anomalies
+            </a>
+        </div>
     </div>
 </div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ "{:,}".format(summary.total_matched or 0) }}</h4>
+                        <p class="card-text">Matched Transactions</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ "{:,}".format(summary.total_pending or 0) }}</h4>
+                        <p class="card-text">Pending Review</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-danger">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ "{:,}".format(summary.total_anomalies or 0) }}</h4>
+                        <p class="card-text">Anomalies Found</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ "{:,}".format((summary.total_matched or 0) + (summary.total_pending or 0) + (summary.total_anomalies or 0)) }}</h4>
+                        <p class="card-text">Total Processed</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-calculator fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Run Reconciliation -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-play"></i> Run Reconciliation</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('recon.run_reconciliation') }}">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="date_filter" class="form-label">Date Filter (Optional)</label>
+                                <input type="date" class="form-control" id="date_filter" name="date_filter">
+                                <div class="form-text">Leave empty to process all available data</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="mb-3">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-play"></i> Start Reconciliation
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+                
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle"></i> Reconciliation Process</h6>
+                    <ol class="mb-0">
+                        <li>Match MPR transactions with internal data</li>
+                        <li>Match combined data with bank statements</li>
+                        <li>Identify anomalies and exceptions</li>
+                        <li>Generate reconciliation report</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        {% if summary.anomaly_breakdown %}
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-chart-pie"></i> Anomaly Breakdown</h6>
+            </div>
+            <div class="card-body">
+                {% for anomaly_type, count in summary.anomaly_breakdown.items() %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="small">
+                        {% if anomaly_type == 'MISSING_INTERNAL' %}
+                            Missing Internal Data
+                        {% elif anomaly_type == 'MISSING_MPR' %}
+                            Missing MPR Data
+                        {% elif anomaly_type == 'AMOUNT_MISMATCH' %}
+                            Amount Mismatch
+                        {% elif anomaly_type == 'MISSING_BANK' %}
+                            Missing Bank Data
+                        {% else %}
+                            {{ anomaly_type }}
+                        {% endif %}
+                    </span>
+                    <span class="badge bg-danger">{{ count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-lightbulb"></i> Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('recon.results') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-list"></i> View All Results
+                    </a>
+                    <a href="{{ url_for('recon.anomalies') }}" class="btn btn-outline-warning btn-sm">
+                        <i class="fas fa-exclamation-triangle"></i> Review Anomalies
+                    </a>
+                    <a href="{{ url_for('uploads.history') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-history"></i> Upload History
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Results -->
+{% if recent_results %}
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-clock"></i> Recent Reconciliation Results</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>MPR Transaction</th>
+                        <th>Internal Transaction</th>
+                        <th>Bank Amount</th>
+                        <th>Channel</th>
+                        <th>Processed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for result in recent_results %}
+                    <tr>
+                        <td>
+                            {% if result.status == 'MATCHED' %}
+                                <span class="badge bg-success">MATCHED</span>
+                            {% elif result.status == 'PENDING' %}
+                                <span class="badge bg-warning">PENDING</span>
+                            {% elif result.status == 'ANOMALY' %}
+                                <span class="badge bg-danger">ANOMALY</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ result.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if result.mpr_txn_id %}
+                                <small>{{ result.mpr_txn_id }}</small><br>
+                                <small class="text-muted">₹{{ "{:,.2f}".format(result.mpr_amount) if result.mpr_amount else '0.00' }}</small>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if result.internal_txn_id %}
+                                <small>{{ result.internal_txn_id }}</small><br>
+                                <small class="text-muted">₹{{ "{:,.2f}".format(result.internal_amount) if result.internal_amount else '0.00' }}</small>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if result.bank_amount %}
+                                ₹{{ "{:,.2f}".format(result.bank_amount) }}
+                                {% if result.bank_utr %}
+                                    <br><small class="text-muted">{{ result.bank_utr }}</small>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if result.channel_name %}
+                                <span class="badge bg-secondary">{{ result.channel_name }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small>{{ result.created_at.strftime('%m/%d %H:%M') if result.created_at else '-' }}</small>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="text-end">
+            <a href="{{ url_for('recon.results') }}" class="btn btn-sm btn-outline-primary">
+                View All Results <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center">
+        <i class="fas fa-balance-scale fa-3x text-muted mb-3"></i>
+        <h5>No Reconciliation Results</h5>
+        <p class="text-muted">Run your first reconciliation to see results here.</p>
+        <form method="POST" action="{{ url_for('recon.run_reconciliation') }}" style="display: inline;">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-play"></i> Run First Reconciliation
+            </button>
+        </form>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

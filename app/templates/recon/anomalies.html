@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Reconciliation Anomalies{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-exclamation-triangle"></i> Reconciliation Anomalies</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('recon.index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Anomaly Summary -->
+<div class="row mb-4">
+    {% for anomaly_type, count in summary.anomaly_breakdown.items() %}
+    <div class="col-md-3">
+        <div class="card border-danger">
+            <div class="card-body text-center">
+                <h4 class="text-danger">{{ count }}</h4>
+                <p class="card-text">
+                    {% if anomaly_type == 'MISSING_INTERNAL' %}
+                        Missing Internal Data
+                    {% elif anomaly_type == 'MISSING_MPR' %}
+                        Missing MPR Data
+                    {% elif anomaly_type == 'AMOUNT_MISMATCH' %}
+                        Amount Mismatches
+                    {% elif anomaly_type == 'MISSING_BANK' %}
+                        Missing Bank Data
+                    {% else %}
+                        {{ anomaly_type }}
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Anomalies Table -->
+{% if anomalies %}
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-list"></i> Anomaly Details</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Anomaly Type</th>
+                        <th>MPR Transaction</th>
+                        <th>Internal Transaction</th>
+                        <th>Bank Transaction</th>
+                        <th>Channel</th>
+                        <th>Detected</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for anomaly in anomalies %}
+                    <tr>
+                        <td>
+                            <span class="badge bg-danger">
+                                {% if anomaly.anomaly_type == 'MISSING_INTERNAL' %}
+                                    Missing Internal
+                                {% elif anomaly.anomaly_type == 'MISSING_MPR' %}
+                                    Missing MPR
+                                {% elif anomaly.anomaly_type == 'AMOUNT_MISMATCH' %}
+                                    Amount Mismatch
+                                {% elif anomaly.anomaly_type == 'MISSING_BANK' %}
+                                    Missing Bank
+                                {% else %}
+                                    {{ anomaly.anomaly_type }}
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            {% if anomaly.mpr_txn_id %}
+                                <div>
+                                    <strong>{{ anomaly.mpr_txn_id }}</strong>
+                                    <br>
+                                    <small class="text-success">₹{{ "{:,.2f}".format(anomaly.mpr_amount) if anomaly.mpr_amount else '0.00' }}</small>
+                                </div>
+                            {% else %}
+                                <span class="text-muted">No MPR Data</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if anomaly.internal_txn_id %}
+                                <div>
+                                    <strong>{{ anomaly.internal_txn_id }}</strong>
+                                    <br>
+                                    <small class="text-primary">₹{{ "{:,.2f}".format(anomaly.internal_amount) if anomaly.internal_amount else '0.00' }}</small>
+                                </div>
+                            {% else %}
+                                <span class="text-muted">No Internal Data</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if anomaly.bank_amount %}
+                                <div>
+                                    <strong class="text-info">₹{{ "{:,.2f}".format(anomaly.bank_amount) }}</strong>
+                                    {% if anomaly.bank_utr %}
+                                        <br>
+                                        <small class="text-muted">UTR: {{ anomaly.bank_utr }}</small>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                <span class="text-muted">No Bank Data</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if anomaly.channel_name %}
+                                <span class="badge bg-secondary">{{ anomaly.channel_name }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small>{{ anomaly.created_at.strftime('%Y-%m-%d %H:%M') if anomaly.created_at else '-' }}</small>
+                        </td>
+                        <td>
+                            {% if anomaly.status == 'ANOMALY' %}
+                                <form method="POST" action="{{ url_for('recon.resolve_anomaly', result_id=anomaly.id) }}" style="display: inline;">
+                                    <button type="submit" class="btn btn-sm btn-outline-success" 
+                                            onclick="return confirm('Mark this anomaly as resolved?')">
+                                        <i class="fas fa-check"></i> Resolve
+                                    </button>
+                                </form>
+                            {% else %}
+                                <span class="badge bg-info">{{ anomaly.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center">
+        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+        <h5>No Anomalies Found</h5>
+        <p class="text-muted">All transactions have been successfully reconciled without anomalies.</p>
+        <a href="{{ url_for('recon.index') }}" class="btn btn-primary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Resolution Guidelines -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h6><i class="fas fa-lightbulb"></i> Anomaly Resolution Guidelines</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Missing Internal Data</h6>
+                <ul class="small">
+                    <li>Check if transaction was processed internally</li>
+                    <li>Verify transaction ID format consistency</li>
+                    <li>Upload missing internal data if available</li>
+                </ul>
+                
+                <h6>Missing MPR Data</h6>
+                <ul class="small">
+                    <li>Verify with payment channel/gateway</li>
+                    <li>Check if transaction was actually processed</li>
+                    <li>Request updated MPR file if needed</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6>Amount Mismatches</h6>
+                <ul class="small">
+                    <li>Check for fee deductions or charges</li>
+                    <li>Verify currency and decimal formatting</li>
+                    <li>Investigate potential data entry errors</li>
+                </ul>
+                
+                <h6>Missing Bank Data</h6>
+                <ul class="small">
+                    <li>Check bank statement completeness</li>
+                    <li>Verify settlement timing (T+1, T+2)</li>
+                    <li>Upload additional bank statement data</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
