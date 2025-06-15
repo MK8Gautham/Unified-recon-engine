@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: collection_recon_db
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=StrongPassword123!
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    networks:
+      - recon_network
+
+  web:
+    build: .
+    container_name: collection_recon_app
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_SERVER=mssql
+      - DATABASE_NAME=collection_recon
+      - DATABASE_USER=sa
+      - DATABASE_PASSWORD=StrongPassword123!
+    depends_on:
+      - mssql
+    volumes:
+      - ./app/static/uploads:/app/app/static/uploads
+    networks:
+      - recon_network
+
+volumes:
+  mssql_data:
+
+networks:
+  recon_network:
+    driver: bridge

@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Collection Reconciliation System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-tachometer-alt"></i> Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-calendar"></i> Today
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ data.total_transactions }}</h4>
+                        <p class="card-text">Total Transactions</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exchange-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>₹{{ "%.2f"|format(data.total_amount) }}</h4>
+                        <p class="card-text">Total Amount</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-rupee-sign fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>{{ data.channels|length }}</h4>
+                        <p class="card-text">Active Channels</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-sitemap fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4>0</h4>
+                        <p class="card-text">Pending Recon</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-clock"></i> Recent Uploads</h5>
+            </div>
+            <div class="card-body">
+                {% if data.recent_uploads %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>File</th>
+                                    <th>Channel</th>
+                                    <th>Upload Time</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for upload in data.recent_uploads %}
+                                <tr>
+                                    <td>{{ upload.filename }}</td>
+                                    <td>{{ upload.channel }}</td>
+                                    <td>{{ upload.upload_time }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if upload.status == 'COMPLETED' else 'warning' }}">
+                                            {{ upload.status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No recent uploads found.</p>
+                    <a href="{{ url_for('uploads.mpr') }}" class="btn btn-primary">
+                        <i class="fas fa-upload"></i> Upload First File
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-pie"></i> Channel Breakdown</h5>
+            </div>
+            <div class="card-body">
+                {% if data.channels %}
+                    {% for channel in data.channels %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>{{ channel.name }}</span>
+                        <span class="badge bg-secondary">{{ channel.transaction_count }}</span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No channel data available.</p>
+                    <a href="{{ url_for('config.channels') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-cog"></i> Configure Channels
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
