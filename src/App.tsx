@@ -2,7 +2,8 @@ import React, { useState, useRef } from 'react';
 import { 
   BarChart3, Upload, Database, TrendingUp, AlertTriangle, CheckCircle, 
   Clock, DollarSign, Activity, Settings, Users, FileText, PieChart,
-  Download, Play, RefreshCw, Eye, X, Check, AlertCircle
+  Download, Play, RefreshCw, Eye, X, Check, AlertCircle, MapPin, 
+  ArrowRight, Save, RotateCcw
 } from 'lucide-react';
 
 interface Transaction {
@@ -15,6 +16,20 @@ interface Transaction {
   source: 'mpr' | 'internal' | 'bank';
   matchedWith?: string[];
   anomalyReason?: string;
+}
+
+interface FieldMapping {
+  systemField: string;
+  fileColumn: string;
+  required: boolean;
+  description: string;
+}
+
+interface FileConfig {
+  name: string;
+  mappings: FieldMapping[];
+  sampleData?: any[];
+  columns?: string[];
 }
 
 interface ReconciliationResult {
@@ -60,6 +75,24 @@ const sampleBankData = `transaction_date,amount,utr,description
 2024-01-15,1850.75,UTR123456793,NEFT Credit
 2024-01-15,950.00,UTR123456794,UPI Credit`;
 
+// Alternative sample files with different column names
+const sampleMPRDataAlt = `TXN_ID,AMOUNT,UTR_NUMBER,TXN_TIME,REF_NUMBER
+TXN001,1000.00,UTR123456789,2024-01-15 10:30:00,REF001
+TXN002,2500.50,UTR123456790,2024-01-15 11:45:00,REF002
+TXN003,750.25,UTR123456791,2024-01-15 12:15:00,REF003
+TXN004,3200.00,UTR123456792,2024-01-15 13:30:00,REF004
+TXN005,1850.75,UTR123456793,2024-01-15 14:20:00,REF005
+TXN006,950.00,UTR123456794,2024-01-15 15:10:00,REF006
+TXN007,4500.00,UTR123456795,2024-01-15 16:45:00,REF007`;
+
+const sampleInternalDataAlt = `TRANS_ID,AMT,DATETIME,REFERENCE
+TXN001,1000.00,2024-01-15 10:30:00,REF001
+TXN002,2450.50,2024-01-15 11:45:00,REF002
+TXN003,750.25,2024-01-15 12:15:00,REF003
+TXN004,3200.00,2024-01-15 13:30:00,REF004
+TXN005,1850.75,2024-01-15 14:20:00,REF005
+TXN008,1200.00,2024-01-15 17:30:00,REF008`;
+
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [uploadedFiles, setUploadedFiles] = useState<{
@@ -67,26 +100,56 @@ function App() {
     internal?: File;
     bank?: File;
   }>({});
+  const [fileConfigs, setFileConfigs] = useState<{
+    mpr?: FileConfig;
+    internal?: FileConfig;
+    bank?: FileConfig;
+  }>({});
   const [reconciliationResult, setReconciliationResult] = useState<ReconciliationResult | null>(null);
   const [isReconciling, setIsReconciling] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [showFieldMapping, setShowFieldMapping] = useState<'mpr' | 'internal' | 'bank' | null>(null);
 
   const mprFileRef = useRef<HTMLInputElement>(null);
   const internalFileRef = useRef<HTMLInputElement>(null);
   const bankFileRef = useRef<HTMLInputElement>(null);
 
-  const downloadSampleFile = (type: 'mpr' | 'internal' | 'bank') => {
+  // Default field mappings for different file types
+  const defaultMappings = {
+    mpr: [
+      { systemField: 'transaction_id', fileColumn: '', required: true, description: 'Unique transaction identifier' },
+      { systemField: 'amount', fileColumn: '', required: true, description: 'Transaction amount' },
+      { systemField: 'utr', fileColumn: '', required: false, description: 'Unique Transaction Reference' },
+      { systemField: 'transaction_time', fileColumn: '', required: false, description: 'Transaction timestamp' },
+      { systemField: 'reference_id', fileColumn: '', required: false, description: 'External reference ID' },
+      { systemField: 'settlement_account', fileColumn: '', required: false, description: 'Settlement account number' }
+    ],
+    internal: [
+      { systemField: 'transaction_id', fileColumn: '', required: true, description: 'Unique transaction identifier' },
+      { systemField: 'amount', fileColumn: '', required: true, description: 'Transaction amount' },
+      { systemField: 'transaction_time', fileColumn: '', required: false, description: 'Transaction timestamp' },
+      { systemField: 'reference_id', fileColumn: '', required: false, description: 'Internal reference ID' }
+    ],
+    bank: [
+      { systemField: 'transaction_date', fileColumn: '', required: false, description: 'Transaction date' },
+      { systemField: 'amount', fileColumn: '', required: true, description: 'Transaction amount' },
+      { systemField: 'utr', fileColumn: '', required: false, description: 'Unique Transaction Reference' },
+      { systemField: 'description', fileColumn: '', required: false, description: 'Transaction description' }
+    ]
+  };
+
+  const downloadSampleFile = (type: 'mpr' | 'internal' | 'bank', variant: 'standard' | 'alternative' = 'standard') => {
     let content = '';
     let filename = '';
     
     switch (type) {
       case 'mpr':
-        content = sampleMPRData;
-        filename = 'sample_mpr_data.csv';
+        content = variant === 'alternative' ? sampleMPRDataAlt : sampleMPRData;
+        filename = variant === 'alternative' ? 'sample_mpr_data_alt_columns.csv' : 'sample_mpr_data.csv';
         break;
       case 'internal':
-        content = sampleInternalData;
-        filename = 'sample_internal_data.csv';
+        content = variant === 'alternative' ? sampleInternalDataAlt : sampleInternalData;
+        filename = variant === 'alternative' ? 'sample_internal_data_alt_columns.csv' : 'sample_internal_data.csv';
         break;
       case 'bank':
         content = sampleBankData;
@@ -118,9 +181,99 @@ function App() {
     });
   };
 
+  const getCSVColumns = (content: string): string[] => {
+    const lines = content.trim().split('\n');
+    return lines[0].split(',').map(col => col.trim());
+  };
+
+  const handleFileUpload = async (type: 'mpr' | 'internal' | 'bank', file: File) => {
+    setUploadedFiles(prev => ({ ...prev, [type]: file }));
+    
+    // Parse file to get columns for mapping
+    try {
+      const content = await file.text();
+      const columns = getCSVColumns(content);
+      const sampleData = parseCSV(content).slice(0, 3); // First 3 rows for preview
+      
+      // Auto-detect common column mappings
+      const mappings = defaultMappings[type].map(mapping => {
+        const detectedColumn = columns.find(col => {
+          const colLower = col.toLowerCase();
+          const fieldLower = mapping.systemField.toLowerCase();
+          return colLower.includes(fieldLower) || 
+                 fieldLower.includes(colLower) ||
+                 (mapping.systemField === 'transaction_id' && (colLower.includes('txn') || colLower.includes('trans'))) ||
+                 (mapping.systemField === 'amount' && (colLower.includes('amt') || colLower === 'amount')) ||
+                 (mapping.systemField === 'utr' && colLower.includes('utr')) ||
+                 (mapping.systemField === 'transaction_time' && (colLower.includes('time') || colLower.includes('date'))) ||
+                 (mapping.systemField === 'reference_id' && (colLower.includes('ref') || colLower.includes('reference')));
+        });
+        
+        return {
+          ...mapping,
+          fileColumn: detectedColumn || ''
+        };
+      });
+      
+      setFileConfigs(prev => ({
+        ...prev,
+        [type]: {
+          name: file.name,
+          mappings,
+          sampleData,
+          columns
+        }
+      }));
+      
+      // Show field mapping interface
+      setShowFieldMapping(type);
+    } catch (error) {
+      alert('Error reading file. Please ensure it\'s a valid CSV file.');
+    }
+  };
+
+  const updateFieldMapping = (type: 'mpr' | 'internal' | 'bank', systemField: string, fileColumn: string) => {
+    setFileConfigs(prev => ({
+      ...prev,
+      [type]: {
+        ...prev[type]!,
+        mappings: prev[type]!.mappings.map(mapping =>
+          mapping.systemField === systemField
+            ? { ...mapping, fileColumn }
+            : mapping
+        )
+      }
+    }));
+  };
+
+  const validateMappings = (type: 'mpr' | 'internal' | 'bank'): boolean => {
+    const config = fileConfigs[type];
+    if (!config) return false;
+    
+    const requiredMappings = config.mappings.filter(m => m.required);
+    return requiredMappings.every(m => m.fileColumn !== '');
+  };
+
+  const applyFieldMapping = (data: any[], mappings: FieldMapping[]): any[] => {
+    return data.map(row => {
+      const mappedRow: any = {};
+      mappings.forEach(mapping => {
+        if (mapping.fileColumn && row[mapping.fileColumn] !== undefined) {
+          mappedRow[mapping.systemField] = row[mapping.fileColumn];
+        }
+      });
+      return mappedRow;
+    });
+  };
+
   const performReconciliation = async () => {
     if (!uploadedFiles.mpr || !uploadedFiles.internal) {
       alert('Please upload both MPR and Internal data files to perform reconciliation');
+      return;
+    }
+
+    if (!validateMappings('mpr') || !validateMappings('internal')) {
+      alert('Please configure field mappings for all required fields');
       return;
     }
 
@@ -134,9 +287,16 @@ function App() {
       const internalContent = await uploadedFiles.internal.text();
       const bankContent = uploadedFiles.bank ? await uploadedFiles.bank.text() : '';
 
-      const mprData = parseCSV(mprContent);
-      const internalData = parseCSV(internalContent);
-      const bankData = bankContent ? parseCSV(bankContent) : [];
+      const rawMprData = parseCSV(mprContent);
+      const rawInternalData = parseCSV(internalContent);
+      const rawBankData = bankContent ? parseCSV(bankContent) : [];
+
+      // Apply field mappings
+      const mprData = applyFieldMapping(rawMprData, fileConfigs.mpr!.mappings);
+      const internalData = applyFieldMapping(rawInternalData, fileConfigs.internal!.mappings);
+      const bankData = uploadedFiles.bank && fileConfigs.bank 
+        ? applyFieldMapping(rawBankData, fileConfigs.bank.mappings) 
+        : rawBankData;
 
       // Perform reconciliation logic
       const transactions: Transaction[] = [];
@@ -202,7 +362,7 @@ function App() {
           transactionId: mprTxn.transaction_id,
           amount: parseFloat(mprTxn.amount),
           utr: mprTxn.utr,
-          timestamp: mprTxn.timestamp,
+          timestamp: mprTxn.transaction_time,
           status,
           source: 'mpr',
           matchedWith,
@@ -228,7 +388,7 @@ function App() {
             id: `internal_${intTxn.transaction_id}`,
             transactionId: intTxn.transaction_id,
             amount: parseFloat(intTxn.amount),
-            timestamp: intTxn.timestamp,
+            timestamp: intTxn.transaction_time,
             status: 'anomaly',
             source: 'internal',
             matchedWith: [],
@@ -253,15 +413,189 @@ function App() {
 
       setReconciliationResult(result);
       setShowResults(true);
+      setActiveTab('results');
     } catch (error) {
-      alert('Error processing files. Please check the file format.');
+      alert('Error processing files. Please check the file format and field mappings.');
     } finally {
       setIsReconciling(false);
     }
   };
 
-  const handleFileUpload = (type: 'mpr' | 'internal' | 'bank', file: File) => {
-    setUploadedFiles(prev => ({ ...prev, [type]: file }));
+  const FieldMappingModal = ({ type }: { type: 'mpr' | 'internal' | 'bank' }) => {
+    const config = fileConfigs[type];
+    if (!config) return null;
+
+    const typeLabels = {
+      mpr: 'MPR Data',
+      internal: 'Internal Data', 
+      bank: 'Bank Statement'
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">Configure Field Mapping</h3>
+                <p className="text-gray-600 mt-1">{typeLabels[type]} - {config.name}</p>
+              </div>
+              <button
+                onClick={() => setShowFieldMapping(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Field Mappings */}
+              <div>
+                <h4 className="font-medium text-gray-900 mb-4 flex items-center">
+                  <MapPin className="w-5 h-5 mr-2 text-blue-600" />
+                  Field Mappings
+                </h4>
+                <div className="space-y-4">
+                  {config.mappings.map((mapping, index) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="font-medium text-gray-900 flex items-center">
+                          {mapping.systemField.replace('_', ' ').toUpperCase()}
+                          {mapping.required && <span className="text-red-500 ml-1">*</span>}
+                        </label>
+                        {mapping.fileColumn && (
+                          <span className="text-green-600 text-sm flex items-center">
+                            <Check className="w-4 h-4 mr-1" />
+                            Mapped
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600 mb-3">{mapping.description}</p>
+                      <select
+                        value={mapping.fileColumn}
+                        onChange={(e) => updateFieldMapping(type, mapping.systemField, e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Select column...</option>
+                        {config.columns?.map(column => (
+                          <option key={column} value={column}>{column}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* File Preview */}
+              <div>
+                <h4 className="font-medium text-gray-900 mb-4 flex items-center">
+                  <Eye className="w-5 h-5 mr-2 text-green-600" />
+                  File Preview
+                </h4>
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                    <p className="text-sm font-medium text-gray-700">First 3 rows from your file:</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          {config.columns?.map(column => (
+                            <th key={column} className="px-3 py-2 text-left font-medium text-gray-700 border-b">
+                              {column}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {config.sampleData?.map((row, index) => (
+                          <tr key={index} className="border-b border-gray-100">
+                            {config.columns?.map(column => (
+                              <td key={column} className="px-3 py-2 text-gray-600">
+                                {row[column]}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Mapping Status */}
+                <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                  <h5 className="font-medium text-blue-900 mb-2">Mapping Status</h5>
+                  <div className="space-y-2">
+                    {config.mappings.filter(m => m.required).map(mapping => (
+                      <div key={mapping.systemField} className="flex items-center justify-between">
+                        <span className="text-sm text-blue-800">{mapping.systemField.replace('_', ' ').toUpperCase()}</span>
+                        {mapping.fileColumn ? (
+                          <span className="text-green-600 text-sm flex items-center">
+                            <Check className="w-4 h-4 mr-1" />
+                            {mapping.fileColumn}
+                          </span>
+                        ) : (
+                          <span className="text-red-600 text-sm flex items-center">
+                            <AlertTriangle className="w-4 h-4 mr-1" />
+                            Required
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 border-t border-gray-200 bg-gray-50">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => {
+                    setFileConfigs(prev => ({
+                      ...prev,
+                      [type]: {
+                        ...prev[type]!,
+                        mappings: defaultMappings[type]
+                      }
+                    }));
+                  }}
+                  className="text-gray-600 hover:text-gray-800 flex items-center space-x-2"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Reset to Default</span>
+                </button>
+              </div>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowFieldMapping(null)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (validateMappings(type)) {
+                      setShowFieldMapping(null);
+                    } else {
+                      alert('Please map all required fields before saving.');
+                    }
+                  }}
+                  disabled={!validateMappings(type)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Save Mapping</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const Sidebar = () => (
@@ -306,7 +640,7 @@ function App() {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-bold text-gray-900">Reconciliation Dashboard</h2>
-          <p className="text-gray-600 mt-1">Upload files and perform real-time reconciliation</p>
+          <p className="text-gray-600 mt-1">Upload files and perform real-time reconciliation with custom field mapping</p>
         </div>
         <button 
           onClick={() => setActiveTab('upload')}
@@ -371,7 +705,7 @@ function App() {
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-8 text-white text-center">
           <Upload className="w-16 h-16 mx-auto mb-4 opacity-80" />
           <h3 className="text-2xl font-bold mb-2">Ready to Start?</h3>
-          <p className="text-blue-100 mb-6">Upload your MPR and Internal data files to begin reconciliation</p>
+          <p className="text-blue-100 mb-6">Upload your files with custom field mapping to begin reconciliation</p>
           <button 
             onClick={() => setActiveTab('upload')}
             className="bg-white text-blue-600 px-6 py-3 rounded-lg hover:bg-gray-100 transition-colors font-medium"
@@ -451,7 +785,7 @@ function App() {
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold text-gray-900">Upload & Reconcile</h2>
-        <p className="text-gray-600 mt-1">Upload your data files and perform real-time reconciliation</p>
+        <p className="text-gray-600 mt-1">Upload your data files with custom field mapping and perform real-time reconciliation</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -468,13 +802,22 @@ function App() {
           </div>
           
           <div className="space-y-3">
-            <button
-              onClick={() => downloadSampleFile('mpr')}
-              className="w-full flex items-center justify-center space-x-2 py-2 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              <span className="text-sm">Download Sample</span>
-            </button>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => downloadSampleFile('mpr', 'standard')}
+                className="flex-1 flex items-center justify-center space-x-2 py-2 px-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+              >
+                <Download className="w-4 h-4" />
+                <span>Standard</span>
+              </button>
+              <button
+                onClick={() => downloadSampleFile('mpr', 'alternative')}
+                className="flex-1 flex items-center justify-center space-x-2 py-2 px-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+              >
+                <Download className="w-4 h-4" />
+                <span>Alt Columns</span>
+              </button>
+            </div>
             
             <input
               ref={mprFileRef}
@@ -493,9 +836,25 @@ function App() {
             </button>
             
             {uploadedFiles.mpr && (
-              <div className="flex items-center space-x-2 text-sm text-green-600">
-                <Check className="w-4 h-4" />
-                <span>{uploadedFiles.mpr.name}</span>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2 text-sm text-green-600">
+                  <Check className="w-4 h-4" />
+                  <span>{uploadedFiles.mpr.name}</span>
+                </div>
+                {fileConfigs.mpr && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">
+                      {validateMappings('mpr') ? 'Mapping configured' : 'Mapping required'}
+                    </span>
+                    <button
+                      onClick={() => setShowFieldMapping('mpr')}
+                      className="text-xs text-blue-600 hover:text-blue-700 flex items-center space-x-1"
+                    >
+                      <Settings className="w-3 h-3" />
+                      <span>Configure</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -514,13 +873,22 @@ function App() {
           </div>
           
           <div className="space-y-3">
-            <button
-              onClick={() => downloadSampleFile('internal')}
-              className="w-full flex items-center justify-center space-x-2 py-2 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              <span className="text-sm">Download Sample</span>
-            </button>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => downloadSampleFile('internal', 'standard')}
+                className="flex-1 flex items-center justify-center space-x-2 py-2 px-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+              >
+                <Download className="w-4 h-4" />
+                <span>Standard</span>
+              </button>
+              <button
+                onClick={() => downloadSampleFile('internal', 'alternative')}
+                className="flex-1 flex items-center justify-center space-x-2 py-2 px-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+              >
+                <Download className="w-4 h-4" />
+                <span>Alt Columns</span>
+              </button>
+            </div>
             
             <input
               ref={internalFileRef}
@@ -539,9 +907,25 @@ function App() {
             </button>
             
             {uploadedFiles.internal && (
-              <div className="flex items-center space-x-2 text-sm text-green-600">
-                <Check className="w-4 h-4" />
-                <span>{uploadedFiles.internal.name}</span>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2 text-sm text-green-600">
+                  <Check className="w-4 h-4" />
+                  <span>{uploadedFiles.internal.name}</span>
+                </div>
+                {fileConfigs.internal && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">
+                      {validateMappings('internal') ? 'Mapping configured' : 'Mapping required'}
+                    </span>
+                    <button
+                      onClick={() => setShowFieldMapping('internal')}
+                      className="text-xs text-blue-600 hover:text-blue-700 flex items-center space-x-1"
+                    >
+                      <Settings className="w-3 h-3" />
+                      <span>Configure</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -585,9 +969,25 @@ function App() {
             </button>
             
             {uploadedFiles.bank && (
-              <div className="flex items-center space-x-2 text-sm text-green-600">
-                <Check className="w-4 h-4" />
-                <span>{uploadedFiles.bank.name}</span>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2 text-sm text-green-600">
+                  <Check className="w-4 h-4" />
+                  <span>{uploadedFiles.bank.name}</span>
+                </div>
+                {fileConfigs.bank && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500">
+                      {validateMappings('bank') ? 'Mapping configured' : 'Mapping required'}
+                    </span>
+                    <button
+                      onClick={() => setShowFieldMapping('bank')}
+                      className="text-xs text-blue-600 hover:text-blue-700 flex items-center space-x-1"
+                    >
+                      <Settings className="w-3 h-3" />
+                      <span>Configure</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -601,13 +1001,15 @@ function App() {
             <h3 className="text-xl font-semibold mb-2">Ready to Reconcile?</h3>
             <p className="text-blue-100">
               {uploadedFiles.mpr && uploadedFiles.internal 
-                ? 'All required files uploaded. Click to start reconciliation.' 
+                ? (validateMappings('mpr') && validateMappings('internal')
+                   ? 'All files uploaded and mapped. Click to start reconciliation.' 
+                   : 'Configure field mappings to proceed.')
                 : 'Upload MPR and Internal data files to begin.'}
             </p>
           </div>
           <button
             onClick={performReconciliation}
-            disabled={!uploadedFiles.mpr || !uploadedFiles.internal || isReconciling}
+            disabled={!uploadedFiles.mpr || !uploadedFiles.internal || !validateMappings('mpr') || !validateMappings('internal') || isReconciling}
             className="bg-white text-blue-600 px-6 py-3 rounded-lg hover:bg-gray-100 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
           >
             {isReconciling ? (
@@ -625,37 +1027,70 @@ function App() {
         </div>
       </div>
 
-      {/* File Format Info */}
+      {/* Field Mapping Info */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">File Format Requirements</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <MapPin className="w-5 h-5 mr-2 text-blue-600" />
+          Field Mapping System
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="font-medium text-blue-600 mb-2">MPR Data Format</h4>
-            <ul className="text-sm text-gray-600 space-y-1">
-              <li>• transaction_id (required)</li>
-              <li>• amount (required)</li>
-              <li>• utr (optional)</li>
-              <li>• timestamp (optional)</li>
-              <li>• reference_id (optional)</li>
-            </ul>
+            <h4 className="font-medium text-gray-900 mb-3">How It Works</h4>
+            <div className="space-y-3">
+              <div className="flex items-start space-x-3">
+                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-blue-600 text-xs font-bold">1</span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Upload Your File</p>
+                  <p className="text-xs text-gray-600">System automatically detects columns</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-3">
+                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-blue-600 text-xs font-bold">2</span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Smart Auto-Mapping</p>
+                  <p className="text-xs text-gray-600">AI suggests field mappings based on column names</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-3">
+                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-blue-600 text-xs font-bold">3</span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Review & Adjust</p>
+                  <p className="text-xs text-gray-600">Verify mappings and make corrections if needed</p>
+                </div>
+              </div>
+              <div className="flex items-start space-x-3">
+                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-blue-600 text-xs font-bold">4</span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Process & Reconcile</p>
+                  <p className="text-xs text-gray-600">System uses your mappings for accurate reconciliation</p>
+                </div>
+              </div>
+            </div>
           </div>
           <div>
-            <h4 className="font-medium text-green-600 mb-2">Internal Data Format</h4>
-            <ul className="text-sm text-gray-600 space-y-1">
-              <li>• transaction_id (required)</li>
-              <li>• amount (required)</li>
-              <li>• timestamp (optional)</li>
-              <li>• reference_id (optional)</li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-medium text-purple-600 mb-2">Bank Data Format</h4>
-            <ul className="text-sm text-gray-600 space-y-1">
-              <li>• transaction_date (optional)</li>
-              <li>• amount (required)</li>
-              <li>• utr (optional)</li>
-              <li>• description (optional)</li>
-            </ul>
+            <h4 className="font-medium text-gray-900 mb-3">Supported Formats</h4>
+            <div className="space-y-2">
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm font-medium text-gray-900">Standard Format</p>
+                <p className="text-xs text-gray-600">transaction_id, amount, utr, timestamp</p>
+              </div>
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm font-medium text-gray-900">Alternative Format</p>
+                <p className="text-xs text-gray-600">TXN_ID, AMOUNT, UTR_NUMBER, TXN_TIME</p>
+              </div>
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm font-medium text-gray-900">Custom Format</p>
+                <p className="text-xs text-gray-600">Any column names - system will map them</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -678,7 +1113,7 @@ function App() {
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-3xl font-bold text-gray-900">Reconciliation Results</h2>
-            <p className="text-gray-600 mt-1">Detailed analysis of your reconciliation</p>
+            <p className="text-gray-600 mt-1">Detailed analysis of your reconciliation with custom field mapping</p>
           </div>
           <button 
             onClick={() => setActiveTab('upload')}
@@ -829,6 +1264,11 @@ function App() {
       <main className="ml-64 p-8">
         {renderContent()}
       </main>
+      
+      {/* Field Mapping Modal */}
+      {showFieldMapping && (
+        <FieldMappingModal type={showFieldMapping} />
+      )}
     </div>
   );
 }
